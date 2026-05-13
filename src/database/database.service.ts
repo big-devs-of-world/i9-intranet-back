@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { initDB } from "./connection.database";
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from "firebase/firestore";
 
 @Injectable()
 export class DatabaseService {
