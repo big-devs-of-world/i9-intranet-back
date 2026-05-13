@@ -1,10 +1,46 @@
 import { Injectable } from "@nestjs/common";
 import { initDB } from "./connection.database";
-import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from "firebase/firestore";
 
 @Injectable()
 export class DatabaseService {
   constructor(private readonly dbConfig = initDB()) { }
+
+  /**
+   * @description Adiciona documento ao banco de dados
+   * @param collectionName 
+   * @param data 
+   * @param docId (Opcional)
+   */
+  async setNewDoc(collectionName: string, data: any, docId?: string): Promise<{ id: string, data: any } | boolean> {
+    try {
+      let docRef: any;
+
+      if (!collectionName || !collectionName.length) throw new Error('collectionName não pode ser vazio')
+      if (!data) throw new Error('data não pode ser vazio')
+
+      if (docId) {
+        docRef = doc(this.dbConfig, collectionName, docId)
+      } else {
+        docRef = doc(this.dbConfig, collectionName)
+      }
+
+      await addDoc(docRef, data).then((doc) => {
+        const docData = { id: doc.id, data }
+        console.log('[DATABASE] -> documento criado com os dados: ', docData)
+
+        return docData
+      }).catch((e) => {
+        console.error(`[DATABASE] -> falha ao adiconar documento`, e)
+      })
+
+    } catch (e) {
+      console.error(`[ERROR] -> Falha ao adicionar o documento ao banco de dados: ${e}`)
+      throw e
+    }
+    return false;
+  }
+
 
   /**
    * @description Busca um documento no banco pelo ID
