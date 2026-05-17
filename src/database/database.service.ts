@@ -4,8 +4,12 @@ import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from "
 
 @Injectable()
 export class DatabaseService {
-  constructor(private readonly dbConfig = initDB()) { }
+  private readonly dbConfig: any;
 
+  constructor() {
+    this.dbConfig = initDB();
+  }
+  
   /**
    * @description Adiciona documento ao banco de dados
    * @param collectionName 
