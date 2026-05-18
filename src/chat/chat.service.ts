@@ -27,6 +27,7 @@ export class ChatService {
 
       const data = {
         name: createChatDto.name,
+        isDM: createChatDto.isDM,
         participants: createChatDto.participants,
         createdAt: new Date().toISOString(),
         lastMessage: null,
@@ -154,6 +155,10 @@ export class ChatService {
         throw new NotFoundException(`Chat com ID '${chatId}' não encontrado`);
       }
 
+      if (chatDoc.data?.isDM) {
+        throw new ForbiddenException(`Não é possível adicionar participantes em uma conversa direta (DM)`);
+      }
+
       const participants: string[] = chatDoc.data?.participants || [];
       if (participants.includes(userId)) {
         throw new ConflictException(`Usuário com ID '${userId}' já é participante do chat '${chatId}'`);
@@ -172,7 +177,8 @@ export class ChatService {
     } catch (error) {
       if (
         error instanceof NotFoundException ||
-        error instanceof ConflictException
+        error instanceof ConflictException ||
+        error instanceof ForbiddenException
       ) {
         throw error;
       }
@@ -199,6 +205,10 @@ export class ChatService {
         throw new NotFoundException(`Chat com ID '${chatId}' não encontrado`);
       }
 
+      if (chatDoc.data?.isDM) {
+        throw new ForbiddenException(`Não é possível remover participantes de uma conversa direta (DM)`);
+      }
+
       const participants: string[] = chatDoc.data?.participants || [];
       if (!participants.includes(userId)) {
         throw new BadRequestException(`Usuário com ID '${userId}' não é participante do chat '${chatId}'`);
@@ -217,7 +227,8 @@ export class ChatService {
     } catch (error) {
       if (
         error instanceof NotFoundException ||
-        error instanceof BadRequestException
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
       ) {
         throw error;
       }
@@ -238,7 +249,6 @@ export class ChatService {
         throw new NotFoundException(`Usuário com ID '${userId}' não encontrado`);
       }
 
-      // Verifica se o chat existe no banco de dados
       let chatDoc: any;
       try {
         chatDoc = await this.databaseService.getDoc(this.chatsCollection, chatId);
@@ -246,7 +256,10 @@ export class ChatService {
         throw new NotFoundException(`Chat com ID '${chatId}' não encontrado`);
       }
 
-      // Verifica se o usuário é membro do chat
+      if (chatDoc.data?.isDM) {
+        throw new ForbiddenException(`Não é possível excluir uma conversa direta (DM)`);
+      }
+
       const participants: string[] = chatDoc.data?.participants || [];
       if (!participants.includes(userId)) {
         throw new ForbiddenException(`Usuário com ID '${userId}' não é membro do chat '${chatId}'`);
