@@ -15,7 +15,7 @@ export function initDB() {
     };
 
     const app = initializeApp(firebaseConfig);
-    dbInstance = getFirestore(app);
+    dbInstance = getFirestore(app, "default");
   }
 
   return dbInstance;

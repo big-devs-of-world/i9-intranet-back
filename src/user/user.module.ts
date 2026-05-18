@@ -8,3 +8,5 @@ import { UserService } from './user.service';
   providers: [UserService],
 })
 export class UserModule { }
+
+// sistema de usuários básico apenas para testes
