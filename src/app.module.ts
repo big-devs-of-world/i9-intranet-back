@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { ChatModule } from './chat/chat.module';
 import { DatabaseService } from './database/database.service';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
