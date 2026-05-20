@@ -6,7 +6,7 @@ import { CreateUserDto } from "./dto/create-user.dto";
 export class UserService {
   private readonly collectionName = 'users';
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(private readonly databaseService: DatabaseService) { }
 
   async createUser(createUserDto: CreateUserDto) {
     try {
@@ -14,7 +14,7 @@ export class UserService {
         ...createUserDto,
         createdAt: new Date().toISOString()
       };
-      const userId = await this.databaseService.createDoc(this.collectionName, data);
+      const userId = await this.databaseService.setNewDoc(this.collectionName, data);
       return { id: userId, ...data };
     } catch (error) {
       throw new InternalServerErrorException('Failed to create user');

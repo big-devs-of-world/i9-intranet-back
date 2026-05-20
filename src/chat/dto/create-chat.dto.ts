@@ -1,11 +1,12 @@
-import { ArrayMinSize, IsArray, IsBoolean, IsString } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class CreateChatDto {
   @IsString()
   name: string;
 
+  @IsOptional()
   @IsBoolean()
-  isDM: boolean;
+  isDM?: boolean;
 
   @IsArray()
   @IsString({ each: true })

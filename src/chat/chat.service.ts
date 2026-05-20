@@ -10,32 +10,55 @@ export class ChatService {
 
   constructor(private readonly databaseService: DatabaseService) { }
 
-  // Função para criar um chat
-  // ┐( ˘_˘ )┌
+  /**
+   * Função privado para verificar a existência de um usuário.
+   * futuramente fazer esta lógica dentro do user.service.ts (confirmar se esta é a melhor prática)
+   */
+  private async checkUserExists(userId: string): Promise<any> {
+    try {
+      return await this.databaseService.getDoc('users', userId);
+    } catch {
+      throw new NotFoundException(`Usuário com ID '${userId}' não encontrado`);
+    }
+  }
+
+  /**
+   * Função privado para verificar a existência de um chat.
+   */
+  private async checkChatExists(chatId: string): Promise<any> {
+    try {
+      return await this.databaseService.getDoc(this.chatsCollection, chatId);
+    } catch {
+      throw new NotFoundException(`Chat com ID '${chatId}' não encontrado`);
+    }
+  }
+
+  /**
+   * Cria um novo chat no banco de dados.
+   * Verifica a existência de todos os participantes antes de criar.
+   * ┐( ˘_˘ )┌
+   * 
+   * @param createChatDto Dados para criação do chat.
+   * @returns O documento do chat criado.
+   */
   async createChat(createChatDto: CreateChatDto) {
     try {
       // Verifica se todos os participantes existem no banco de dados
       await Promise.all(
-        createChatDto.participants.map(async (userId: string) => {
-          try {
-            await this.databaseService.getDoc('users', userId);
-          } catch {
-            throw new NotFoundException(`Usuário com ID '${userId}' não encontrado`);
-          }
-        })
+        createChatDto.participants.map((userId: string) => this.checkUserExists(userId))
       );
 
       const data = {
         name: createChatDto.name,
-        isDM: createChatDto.isDM,
+        isDM: createChatDto.isDM ?? false,
         participants: createChatDto.participants,
         createdAt: new Date().toISOString(),
         lastMessage: null,
         lastMessageAt: null,
       };
 
-      const chatId = await this.databaseService.createDoc(this.chatsCollection, data);
-      return { id: chatId, ...data };
+      const chat = await this.databaseService.setNewDoc(this.chatsCollection, data);
+      return chat;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -44,10 +67,14 @@ export class ChatService {
     }
   }
 
-  // função para pegar os chats de um usuário específico
-  // se no futuro tiver auth, pegar userId do auth
-  // por enquanto ela recebe o userId no parametro do get (que não é muito confiavel)
-  // (づ ￣ ³￣ )づ
+  /**
+   * Retorna todos os chats em que um usuário específico é participante.
+   * FUTURO: Futuramente, obter o userId a partir do token de autenticação (auth) em vez do parâmetro.
+   * (づ ￣ ³￣ )づ
+   * 
+   * @param userId ID do usuário.
+   * @returns Lista de chats do usuário.
+   */
   async getChatsByUserId(userId: string) {
     try {
       const chats = await this.databaseService.getDocsByQuery(this.chatsCollection, 'participants', 'array-contains', userId);
@@ -57,17 +84,20 @@ export class ChatService {
     }
   }
 
-  // função para enviar uma mensagem em um chat
-  // verifica se o chat existe e se o senderId (remetente da mensagem) é de um dos participantes do chat
-  // se no futuro tiver auth, utilizar o usuário logado como senderId
-  // por enquanto ela recebe o senderId no body do post (que não é muito confiavel)
-  // ༼ つ ◕_◕ ༽つ
+  /**
+   * Envia uma mensagem em um chat existente.
+   * Valida a existência do chat e se o remetente é participante do mesmo.
+   * FUTURO: Futuramente, obter o senderId a partir do token de autenticação (auth).
+   * ༼ つ ◕_◕ ༽つ
+   * 
+   * @param chatId ID do chat.
+   * @param sendMessageDto Dados da mensagem.
+   * @returns Dados da mensagem enviada e seu ID.
+   */
   async sendMessage(chatId: string, sendMessageDto: SendMessageDto) {
     try {
-      // Verifica se o chat existe
-      const chatDoc: any = await this.databaseService.getDoc(this.chatsCollection, chatId);
+      const chatDoc = await this.checkChatExists(chatId);
 
-      // Verifica se o usuário é um dos participantes do chat
       const participants = chatDoc.data?.participants || [];
       if (!participants.includes(sendMessageDto.senderId)) {
         throw new ForbiddenException(`User with ID ${sendMessageDto.senderId} is not a participant in chat ${chatId}`);
@@ -81,7 +111,7 @@ export class ChatService {
         createdAt: timestamp,
       };
 
-      const messageId = await this.databaseService.createDoc(this.messagesCollection, messageData);
+      const messageId = await this.databaseService.setNewDoc(this.messagesCollection, messageData);
 
       // Atualiza o lastMessage do chat
       await this.databaseService.updateDoc(this.chatsCollection, chatId, {
@@ -98,12 +128,18 @@ export class ChatService {
     }
   }
 
-  // função para pegar as mensagens de um chat, com os dados do remetente de cada mensagem
-  // se no futuro tiver auth, verificar se o usuário logado é um participante do chat
-  // por enquanto ela recebe o chatId no parâmetro da rota, e não faz verificação nenhuma quanto quem está pedindo (inseguro)
-  // ┐( ˘_˘ )┌
+  /**
+   * Recupera as mensagens de um chat, incluindo dados básicos de cada remetente.
+   * FUTURO: Implementar verificação de autorização para garantir que quem solicita é participante.
+   * ┐( ˘_˘ )┌
+   * 
+   * @param chatId ID do chat.
+   * @returns Lista de mensagens enriquecidas com dados do remetente.
+   */
   async getMessages(chatId: string) {
     try {
+      await this.checkChatExists(chatId);
+
       const messages = await this.databaseService.getDocsByQuery(
         this.messagesCollection,
         'chatId',
@@ -132,28 +168,27 @@ export class ChatService {
 
       return enrichedMessages;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new InternalServerErrorException('Failed to get messages');
     }
   }
 
-  // Função para adicionar um participante ao chat
-  // Função verifica se o usuário a ser adicionado existe, se o chat existe e se o usuário já não é participante do chat
-  // Rota sem nenhuma verificação quanto a quem a envio (inseguro)
-  // (ง ื▿ ื)ว
+  /**
+   * Adiciona um novo participante a um chat em grupo existente.
+   * Valida a existência do usuário, do chat, e se não é uma conversa direta (DM).
+   * FUTURO: Implementar verificação de autorização de quem enviou a requisição.
+   * (ง ื▿ ื)ว
+   * 
+   * @param chatId ID do chat.
+   * @param userId ID do usuário a ser adicionado.
+   * @returns Objeto contendo a mensagem de sucesso e a lista atualizada de participantes.
+   */
   async addParticipant(chatId: string, userId: string) {
     try {
-      try {
-        await this.databaseService.getDoc('users', userId);
-      } catch {
-        throw new NotFoundException(`Usuário com ID '${userId}' não encontrado`);
-      }
-
-      let chatDoc: any;
-      try {
-        chatDoc = await this.databaseService.getDoc(this.chatsCollection, chatId);
-      } catch {
-        throw new NotFoundException(`Chat com ID '${chatId}' não encontrado`);
-      }
+      await this.checkUserExists(userId);
+      const chatDoc = await this.checkChatExists(chatId);
 
       if (chatDoc.data?.isDM) {
         throw new ForbiddenException(`Não é possível adicionar participantes em uma conversa direta (DM)`);
@@ -186,24 +221,20 @@ export class ChatService {
     }
   }
 
-  // Função para remover um participante de um chat
-  // Verifica se o usuário existe, se o chat existe e se o usuário é de fato participante antes de remover
-  // Rota sem verificação de quem enviou a requisição (inseguro)
-  // ¯\_(ツ)_/¯
+  /**
+   * Remove um participante de um chat em grupo.
+   * Valida a existência do usuário, do chat, e se a conversa não é direta (DM).
+   * FUTURO: Implementar verificação de autorização de quem enviou a requisição.
+   * ¯\_(ツ)_/¯
+   * 
+   * @param chatId ID do chat.
+   * @param userId ID do usuário a ser removido.
+   * @returns Objeto contendo a mensagem de sucesso e a lista atualizada de participantes.
+   */
   async removeParticipant(chatId: string, userId: string) {
     try {
-      try {
-        await this.databaseService.getDoc('users', userId);
-      } catch {
-        throw new NotFoundException(`Usuário com ID '${userId}' não encontrado`);
-      }
-
-      let chatDoc: any;
-      try {
-        chatDoc = await this.databaseService.getDoc(this.chatsCollection, chatId);
-      } catch {
-        throw new NotFoundException(`Chat com ID '${chatId}' não encontrado`);
-      }
+      await this.checkUserExists(userId);
+      const chatDoc = await this.checkChatExists(chatId);
 
       if (chatDoc.data?.isDM) {
         throw new ForbiddenException(`Não é possível remover participantes de uma conversa direta (DM)`);
@@ -236,25 +267,20 @@ export class ChatService {
     }
   }
 
-  // Função para deletar um chat específico
-  // estou pedindo um userId no body do delete, e verificando se ele é participante do chat para deletar
-  // porém o body pode ser alterado da forma que quiser (inseguro)
-  // (╯°□°）╯︵ ┻━┻ 
+  /**
+   * Exclui um chat em grupo existente.
+   * Valida se o usuário solicitante existe e é participante do chat. Não permite exclusão de DM.
+   * FUTURO: Obter o userId via autenticação em vez do body (atualmente inseguro).
+   * (╯°□°）╯︵ ┻━┻ 
+   * 
+   * @param chatId ID do chat.
+   * @param userId ID do usuário que está solicitando a exclusão.
+   * @returns Objeto com a mensagem de sucesso.
+   */
   async deleteChat(chatId: string, userId: string) {
     try {
-      // Verifica se o usuário existe no banco de dados
-      try {
-        await this.databaseService.getDoc('users', userId);
-      } catch {
-        throw new NotFoundException(`Usuário com ID '${userId}' não encontrado`);
-      }
-
-      let chatDoc: any;
-      try {
-        chatDoc = await this.databaseService.getDoc(this.chatsCollection, chatId);
-      } catch {
-        throw new NotFoundException(`Chat com ID '${chatId}' não encontrado`);
-      }
+      await this.checkUserExists(userId);
+      const chatDoc = await this.checkChatExists(chatId);
 
       if (chatDoc.data?.isDM) {
         throw new ForbiddenException(`Não é possível excluir uma conversa direta (DM)`);

@@ -4,10 +4,47 @@ import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc, addDoc, setDoc,
 
 @Injectable()
 export class DatabaseService {
-  //constructor(private readonly dbConfig = initDB()) { }
-  private readonly dbConfig = initDB();
+  private readonly dbConfig: any;
 
-  constructor() { }
+  constructor() {
+    this.dbConfig = initDB();
+  }
+
+  /**
+   * @description Adiciona documento ao banco de dados
+   * @param collectionName 
+   * @param data 
+   * @param docId (Opcional)
+   */
+  async setNewDoc(collectionName: string, data: any, docId?: string): Promise<{ id: string, data: any } | boolean> {
+    try {
+      let docRef: any;
+
+      if (!collectionName || !collectionName.length) throw new Error('collectionName não pode ser vazio')
+      if (!data) throw new Error('data não pode ser vazio')
+
+      if (docId) {
+        docRef = doc(this.dbConfig, collectionName, docId)
+      } else {
+        docRef = doc(collection(this.dbConfig, collectionName))
+      }
+
+      return await setDoc(docRef, data).then(() => {
+        const docData = { id: docRef.id, data: data }
+        console.log('[DATABASE] -> documento criado com os dados: ', docData)
+
+        return docData
+      }).catch((e) => {
+        console.error(`[DATABASE] -> falha ao adiconar documento`, e)
+        return false;
+      })
+
+    } catch (e) {
+      console.error(`[ERROR] -> Falha ao adicionar o documento ao banco de dados: ${e}`)
+      throw e
+    }
+    return false;
+  }
 
   /**
    * @description Busca um documento no banco pelo ID
@@ -166,28 +203,28 @@ export class DatabaseService {
    * @param docId 
    * @returns 
    */
-  async createDoc(collectionName: string, data: any, docId?: string): Promise<string> {
-    try {
-      if (!collectionName || !collectionName.length) throw new Error('collectionName não pode ser vazio');
-      if (!data) throw new Error('data não pode ser vazio');
+  // async createDoc(collectionName: string, data: any, docId?: string): Promise<string> {
+  //   try {
+  //     if (!collectionName || !collectionName.length) throw new Error('collectionName não pode ser vazio');
+  //     if (!data) throw new Error('data não pode ser vazio');
 
-      if (docId) {
-        // Criar documento com ID manual
-        const docRef = doc(this.dbConfig, collectionName, docId);
-        await setDoc(docRef, data);
-        console.log(`[DATABASE] -> sucesso ao criar o documento ${docId} na collection ${collectionName}`);
-        return docId;
-      } else {
-        // Criar documento com ID automático
-        const collRef = collection(this.dbConfig, collectionName);
-        const docRef = await addDoc(collRef, data);
-        console.log(`[DATABASE] -> sucesso ao criar o documento ${docRef.id} na collection ${collectionName}`);
-        return docRef.id;
-      }
-    } catch (e) {
-      console.error(`[DATABASE] -> falha ao criar documento na collection '${collectionName}':`, e);
-      throw e;
-    }
-  }
+  //     if (docId) {
+  //       // Criar documento com ID manual
+  //       const docRef = doc(this.dbConfig, collectionName, docId);
+  //       await setDoc(docRef, data);
+  //       console.log(`[DATABASE] -> sucesso ao criar o documento ${docId} na collection ${collectionName}`);
+  //       return docId;
+  //     } else {
+  //       // Criar documento com ID automático
+  //       const collRef = collection(this.dbConfig, collectionName);
+  //       const docRef = await addDoc(collRef, data);
+  //       console.log(`[DATABASE] -> sucesso ao criar o documento ${docRef.id} na collection ${collectionName}`);
+  //       return docRef.id;
+  //     }
+  //   } catch (e) {
+  //     console.error(`[DATABASE] -> falha ao criar documento na collection '${collectionName}':`, e);
+  //     throw e;
+  //   }
+  // }
 
 }
