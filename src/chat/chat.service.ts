@@ -2,25 +2,15 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { DatabaseService } from '../database/database.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class ChatService {
   private readonly chatsCollection = 'chats';
   private readonly messagesCollection = 'messages';
 
-  constructor(private readonly databaseService: DatabaseService) { }
+  constructor(private readonly databaseService: DatabaseService, private readonly userService: UserService) { }
 
-  /**
-   * Função privado para verificar a existência de um usuário.
-   * futuramente fazer esta lógica dentro do user.service.ts (confirmar se esta é a melhor prática)
-   */
-  private async checkUserExists(userId: string): Promise<any> {
-    try {
-      return await this.databaseService.getDoc('users', userId);
-    } catch {
-      throw new NotFoundException(`Usuário com ID '${userId}' não encontrado`);
-    }
-  }
 
   /**
    * Função privado para verificar a existência de um chat.
@@ -45,7 +35,7 @@ export class ChatService {
     try {
       // Verifica se todos os participantes existem no banco de dados
       await Promise.all(
-        createChatDto.participants.map((userId: string) => this.checkUserExists(userId))
+        createChatDto.participants.map((userId: string) => this.userService.checkUserExists(userId))
       );
 
       const data = {
@@ -187,7 +177,7 @@ export class ChatService {
    */
   async addParticipant(chatId: string, userId: string) {
     try {
-      await this.checkUserExists(userId);
+      await this.userService.checkUserExists(userId);
       const chatDoc = await this.checkChatExists(chatId);
 
       if (chatDoc.data?.isDM) {
@@ -233,7 +223,7 @@ export class ChatService {
    */
   async removeParticipant(chatId: string, userId: string) {
     try {
-      await this.checkUserExists(userId);
+      await this.userService.checkUserExists(userId);
       const chatDoc = await this.checkChatExists(chatId);
 
       if (chatDoc.data?.isDM) {
@@ -279,7 +269,7 @@ export class ChatService {
    */
   async deleteChat(chatId: string, userId: string) {
     try {
-      await this.checkUserExists(userId);
+      await this.userService.checkUserExists(userId);
       const chatDoc = await this.checkChatExists(chatId);
 
       if (chatDoc.data?.isDM) {
