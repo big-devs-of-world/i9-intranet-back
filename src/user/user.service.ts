@@ -1,27 +1,23 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
 import {
-  collection,
-  deleteDoc,
   doc,
   getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
   setDoc,
-  updateDoc,
-  where,
 } from 'firebase/firestore';
 import { initDB } from '../database/connection.database';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginGoogleDto } from './dto/login-google.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { DatabaseService } from '../database/database.service';
 
 type UserData = {
   name: string;
@@ -41,185 +37,203 @@ export class UserService {
   private readonly db = initDB();
   private readonly googleClient = new OAuth2Client();
 
+  constructor(private readonly databaseService: DatabaseService) { }
+
+  async checkUserExists(userId: string): Promise<any> {
+    try {
+      return await this.databaseService.getDoc('users', userId);
+    } catch {
+      throw new NotFoundException(`Usuário com ID '${userId}' não encontrado`);
+    }
+  }
+
   async create(createUserDto: CreateUserDto) {
-    const email = this.normalizeEmail(createUserDto.email);
-    await this.ensureEmailIsAllowed(email);
+    try {
+      const timestamp = Date.now()
+      const email = this.normalizeEmail(createUserDto.email);
 
-    const userRef = doc(collection(this.db, this.collectionName));
-    const userData: UserData = {
-      name: createUserDto.name,
-      email,
-      role: createUserDto.role ?? 'user',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
+      const userData: UserData = {
+        name: createUserDto.name,
+        email,
+        role: createUserDto.role ?? 'user',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
 
-    await setDoc(userRef, userData);
+      const createdUser = await this.databaseService.setNewDoc(this.collectionName, userData)
 
-    return {
-      message: 'Usuario criado com sucesso',
-      user: {
-        id: userRef.id,
-        ...userData,
-      },
-    };
+      return {
+        message: 'Usuario criado com sucesso',
+        user: createdUser,
+      };
+
+    } catch (e: any) {
+      console.error('Falha ao criar o usuário', e)
+      return {
+        success: false,
+        message: e?.message
+      }
+    }
   }
 
   async getUser(id: string) {
-    const userRef = doc(this.db, this.collectionName, id);
-    const userSnapshot = await getDoc(userRef);
+    try {
+      if (!id || !id.length) throw new HttpException('id é obrigatório', HttpStatus.BAD_REQUEST)
+      const userSnapshot = await this.databaseService.getDoc(this.collectionName, id);
 
-    if (!userSnapshot.exists()) {
-      throw new NotFoundException('Usuario nao encontrado');
+      return userSnapshot;
+    } catch (e: any) {
+      console.error('falha ao buscar usuário', e)
+      return {
+        success: false,
+        message: e.message
+      }
     }
-
-    return {
-      id: userSnapshot.id,
-      ...userSnapshot.data(),
-    };
   }
 
   async getAllUser() {
-    const usersSnapshot = await getDocs(
-      collection(this.db, this.collectionName),
-    );
+    try {
+      const foundUserList = await this.databaseService.getCollection(String(this.collectionName))
 
-    return usersSnapshot.docs.map((user) => ({
-      id: user.id,
-      ...user.data(),
-    }));
+      return {
+        user_qtd: foundUserList.length,
+        userList: foundUserList
+      };
+    } catch (e: any) {
+      console.error('Falha ao buscar lista de usuários', e)
+      return {
+        success: false,
+        message: e.message
+      }
+    }
   }
 
   async updateUser(id: string, updateUserDto: UpdateUserDto) {
-    const userRef = doc(this.db, this.collectionName, id);
-    const userSnapshot = await getDoc(userRef);
 
-    if (!userSnapshot.exists()) {
-      throw new NotFoundException('Usuario nao encontrado');
-    }
+    // Precisa ser melhor pensado, não temos tempo para concluir esse desenvolvimento
+    console.log('não finalizado!')
 
-    const email = updateUserDto.email
-      ? this.normalizeEmail(updateUserDto.email)
-      : undefined;
-    const updateData = this.removeEmptyValues({
-      ...updateUserDto,
-      email,
-      updatedAt: serverTimestamp(),
-    });
+    // const timestamp = Date.now()
+    // const userRef = doc(this.db, this.collectionName, id);
+    // const userSnapshot = await getDoc(userRef);
 
-    if (email) {
-      await this.ensureEmailIsAllowed(email);
-    }
+    // if (!userSnapshot.exists()) {
+    //   throw new NotFoundException('Usuario nao encontrado');
+    // }
 
-    await updateDoc(userRef, updateData);
+    // const email = updateUserDto.email
+    //   ? this.normalizeEmail(updateUserDto.email)
+    //   : undefined;
+    // const updateData = this.removeEmptyValues({
+    //   ...updateUserDto,
+    //   email,
+    //   updatedAt: timestamp,
+    // });
 
-    return {
-      message: 'Usuario atualizado com sucesso',
-      user: await this.getUser(id),
-    };
+    // if (email) {
+    //   await this.ensureEmailIsAllowed(email);
+    // }
+
+    // await updateDoc(userRef, updateData);
+
+    // return {
+    //   message: 'Usuario atualizado com sucesso',
+    //   user: await this.getUser(id),
+    // };
   }
 
   async deleteUser(id: string) {
-    const userRef = doc(this.db, this.collectionName, id);
-    const userSnapshot = await getDoc(userRef);
+    try {
+      const deleted: boolean = await this.databaseService.delDoc(this.collectionName, id)
 
-    if (!userSnapshot.exists()) {
-      throw new NotFoundException('Usuario nao encontrado');
+      return deleted ?
+        {
+          message: 'Usuário apagado com sucesso.',
+          deletedUserId: id
+        } : {
+          success: false,
+          message: `Usuário '${id} não deletado'`
+        }
+    } catch (e: any) {
+      console.error('falha ao apagar usuário', e)
+      return {
+        success: false,
+        message: e.message
+      }
     }
-
-    await deleteDoc(userRef);
-
-    return {
-      message: 'Usuario removido com sucesso',
-      id,
-    };
   }
 
   async register(createUserDto: CreateUserDto) {
     return this.create(createUserDto);
   }
 
-  async loginWithGoogle(loginGoogleDto: LoginGoogleDto) {
-    if (!loginGoogleDto.idToken) {
-      throw new BadRequestException('idToken e obrigatorio');
-    }
+  async loginWithGoogle(data: LoginGoogleDto) {
+    try {
+      const timestamp = Date.now();
 
-    const ticket = await this.googleClient.verifyIdToken({
-      idToken: loginGoogleDto.idToken,
-      audience:
-        process.env.GOOGLE_CLIENT_ID || process.env.FIREBASE_AUTH_CLIENT_ID,
-    });
+      if (!data.idToken) {
+        throw new BadRequestException('idToken e obrigatorio');
+      }
 
-    const payload = ticket.getPayload();
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: data.idToken,
+        audience:
+          process.env.GOOGLE_CLIENT_ID || process.env.FIREBASE_AUTH_CLIENT_ID,
+      });
 
-    if (!payload?.email) {
-      throw new UnauthorizedException('Token do Google invalido');
-    }
+      const payload = ticket.getPayload();
 
-    if (!payload.email_verified) {
-      throw new UnauthorizedException(
-        'E-mail do Google ainda nao foi verificado',
+      if (!payload?.email) {
+        throw new UnauthorizedException('Token do Google invalido');
+      }
+
+      if (!payload.email_verified) {
+        throw new UnauthorizedException(
+          'E-mail do Google ainda nao foi verificado',
+        );
+      }
+
+      const email = this.normalizeEmail(payload.email);
+
+      const userRef = doc(this.db, this.collectionName, payload.sub);
+      const user = await getDoc(userRef);
+
+      const userRole = user.data()?.role ?? 'user'
+
+      const userData = {
+        name: payload.name ?? email,
+        email,
+        role: userRole,
+        provider: 'google',
+        googleId: payload.sub,
+        updatedAt: timestamp,
+        lastLoginAt: timestamp,
+      };
+
+      const dataToSet = user.exists() ? userData : { ...userData, createdAt: timestamp }
+
+      await setDoc(
+        userRef,
+        dataToSet,
+        { merge: true },
       );
+
+      return {
+        message: 'Login realizado com sucesso',
+        user: {
+          id: userRef.id,
+          ...userData,
+        },
+      };
+
+    } catch (e: any) {
+      console.error('Falha ao fazer login com com o google')
+      return {
+        success: false,
+        message: e.message
+      }
     }
 
-    const email = this.normalizeEmail(payload.email);
-    await this.ensureEmailIsAllowed(email);
-
-    const userRef = doc(this.db, this.collectionName, payload.sub);
-    const userSnapshot = await getDoc(userRef);
-    const userData = {
-      name: payload.name ?? email,
-      email,
-      role: userSnapshot.exists()
-        ? (userSnapshot.data().role ?? 'user')
-        : 'user',
-      provider: 'google',
-      googleId: payload.sub,
-      updatedAt: serverTimestamp(),
-      lastLoginAt: serverTimestamp(),
-    };
-
-    await setDoc(
-      userRef,
-      userSnapshot.exists()
-        ? userData
-        : {
-            ...userData,
-            createdAt: serverTimestamp(),
-          },
-      { merge: true },
-    );
-
-    return {
-      message: 'Login realizado com sucesso',
-      user: {
-        id: userRef.id,
-        ...userData,
-      },
-    };
-  }
-
-  private async ensureEmailIsAllowed(email: string) {
-    const allowedByIdRef = doc(
-      this.db,
-      this.allowedEmailsCollectionName,
-      email,
-    );
-    const allowedByIdSnapshot = await getDoc(allowedByIdRef);
-
-    if (allowedByIdSnapshot.exists()) {
-      return;
-    }
-
-    const allowedByEmailQuery = query(
-      collection(this.db, this.allowedEmailsCollectionName),
-      where('email', '==', email),
-    );
-    const allowedByEmailSnapshot = await getDocs(allowedByEmailQuery);
-
-    if (allowedByEmailSnapshot.empty) {
-      throw new ForbiddenException('E-mail nao esta na lista de permitidos');
-    }
   }
 
   private normalizeEmail(email: string) {
@@ -230,11 +244,12 @@ export class UserService {
     return email.trim().toLowerCase();
   }
 
-  private removeEmptyValues<T extends Record<string, unknown>>(data: T) {
-    return Object.fromEntries(
-      Object.entries(data).filter(
-        ([, value]) => value !== undefined && value !== null && value !== '',
-      ),
-    );
-  }
+  ////// Não utilizado
+  // private removeEmptyValues<T extends Record<string, unknown>>(data: T) {
+  //   return Object.fromEntries(
+  //     Object.entries(data).filter(
+  //       ([, value]) => value !== undefined && value !== null && value !== '',
+  //     ),
+  //   );
+  // }
 }

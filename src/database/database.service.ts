@@ -39,7 +39,6 @@ export class DatabaseService {
       console.error(`[ERROR] -> Falha ao adicionar o documento ao banco de dados: ${e}`)
       throw e
     }
-    return false;
   }
 
   /**
@@ -83,7 +82,9 @@ export class DatabaseService {
   async getCollection(collectionName: string): Promise<[{ id: string, data: any }] | any[]> {
     try {
 
-      if (!collectionName || collectionName.length) throw new Error('collectionName não pode ser vazio')
+      console.log('collectionNAme', collectionName)
+
+      if (!collectionName || !collectionName.length) throw new Error('collectionName não pode ser vazio')
 
       const dbRef = collection(this.dbConfig, collectionName)
       const returnedData = await getDocs(dbRef)
