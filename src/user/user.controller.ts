@@ -13,7 +13,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiParam,
-  ApiSchema,
+  ApiBody,
 } from '@nestjs/swagger';
 
 import { CreateUserDto } from './dto/create-user.dto';
@@ -28,6 +28,7 @@ export class UserController {
 
   @Post('create')
   @ApiOperation({ summary: 'Criar usuário' })
+  @ApiBody({ type: CreateUserDto })
   @ApiResponse({ status: 201, description: 'Usuário criado com sucesso' })
   createUser(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
@@ -49,6 +50,7 @@ export class UserController {
   @Put('updateUser/:id')
   @ApiOperation({ summary: 'Atualizar usuário' })
   @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: UpdateUserDto })
   updateUser(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -58,18 +60,21 @@ export class UserController {
 
   @Delete('deleteUser/:id')
   @ApiOperation({ summary: 'Deletar usuário' })
+  @ApiParam({ name: 'id', type: String })
   deleteUser(@Param('id') id: string) {
     return this.userService.deleteUser(id);
   }
 
   @Post('login')
   @ApiOperation({ summary: 'Login com Google' })
+  @ApiBody({ type: LoginGoogleDto })
   login(@Body() body: LoginGoogleDto) {
     return this.userService.loginWithGoogle(body);
   }
 
   @Post('register')
   @ApiOperation({ summary: 'Registrar usuário' })
+  @ApiBody({ type: CreateUserDto })
   register(@Body() createUserDto: CreateUserDto) {
     return this.userService.register(createUserDto);
   }
