@@ -1,19 +1,31 @@
-// DTO responsável por definir os parâmetros aceitos
-// pelo endpoint GET /drive/files
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsNumber, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class ListFilesQueryDto {
-    // Número máximo de arquivos retornados
+    @ApiPropertyOptional({ description: 'Número máximo de arquivos retornados' })
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
     pageSize?: number;
 
-    // Token da próxima página retornado pela requisição anterior
+    @ApiPropertyOptional({ description: 'Token da próxima página retornado pela requisição anterior' })
+    @IsString()
+    @IsOptional()
     pageToken?: string;
 
-    // Filtro utilizando a Drive Search Query Language
+    @ApiPropertyOptional({ description: 'Filtro utilizando a Drive Search Query Language' })
+    @IsString()
+    @IsOptional()
     q?: string;
 
-    // Campos retornados pela API
+    @ApiPropertyOptional({ description: 'Campos retornados pela API' })
+    @IsString()
+    @IsOptional()
     fields?: string;
 
-    // Critério de ordenação dos resultados
+    @ApiPropertyOptional({ description: 'Critério de ordenação dos resultados' })
+    @IsString()
+    @IsOptional()
     orderBy?: string;
 }

@@ -1,9 +1,16 @@
-import { Controller, 
-        Get, Post, 
-        Query, Body, 
-        HttpException, HttpStatus, 
-        UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Body,
+  HttpException,
+  HttpStatus,
+  UploadedFile,
+  UseInterceptors
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import multer from 'multer';
 
 import { File as MulterFile } from 'multer';
@@ -11,20 +18,22 @@ import { File as MulterFile } from 'multer';
 import { AppService } from './app.service';
 
 // Interfaces
-import { ListFilesQueryDto  } from './interfaces/list-files-query.dto';
+import { ListFilesQueryDto } from './interfaces/list-files-query.dto';
 import { ListFilesResponse } from './interfaces/list-files-response.interface';
 import { SearchFileByNameQueryDto } from './interfaces/search-file-by-name-query.dto';
 import { SearchFileByNameResponse } from './interfaces/search-file-by-name-response-interface';
 import { UploadFileBodyDto } from './interfaces/upload-file-body.dto';
 import { UploadFileResponse } from './interfaces/upload-file-response.interface';
 
+@ApiTags('Drive')
 @Controller('drive')
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly appService: AppService) { }
 
   // 📌 loadFileFromDrive → Listar arquivos do Google Drive
   // GET /drive/files
   @Get('files')
+  @ApiOperation({ summary: 'Listar arquivos do Google Drive' })
   async loadFileFromDrive(
     @Query() query: ListFilesQueryDto,
   ): Promise<ListFilesResponse> {
@@ -51,17 +60,18 @@ export class AppController {
   // 📌 getFileFromDrive → Busca arquivos armazenados no Drive
   // GET /drive/files/search
   @Get('files/search')
+  @ApiOperation({ summary: 'Buscar arquivos por nome no Google Drive' })
   async getFileFromDrive(
     @Query() query: SearchFileByNameQueryDto,
-  ): Promise<SearchFileByNameResponse>{
+  ): Promise<SearchFileByNameResponse> {
     try {
       // Validação dos parâmetros obrigatórios
       if (!query.name || String(query.name).trim() == '') {
-        throw new HttpException (
+        throw new HttpException(
           {
             message:
-            'O parâmetro "name" é obrigatório. ' +
-            'Ex: GET /drive/files/search?name=nome-arquivo',
+              'O parâmetro "name" é obrigatório. ' +
+              'Ex: GET /drive/files/search?name=nome-arquivo',
           },
           HttpStatus.BAD_REQUEST,
         );
@@ -71,7 +81,7 @@ export class AppController {
       return await this.appService.getFileFromDrive(query);
     } catch (error) {
       // Repassa HttpExceptions já tratadas
-      if (error instanceof HttpException){
+      if (error instanceof HttpException) {
         throw error;
       }
 
@@ -89,13 +99,31 @@ export class AppController {
   // 📌 addFileToDrive → Adiciona arquivos ao Google Drive
   // POST /drive/files/upload
   @Post('files/upload')
+  @ApiOperation({ summary: 'Fazer upload de arquivo para o Google Drive' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Dados do arquivo a ser enviado',
+    type: UploadFileBodyDto,
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        fileName: { type: 'string' },
+        folderId: { type: 'string' },
+        mimeType: { type: 'string' },
+      },
+    },
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       // Mantém o arquivo em Buffer de memória
       storage: multer.memoryStorage(),
 
       // Limite de 50MB por arquivo
-      limits: {fileSize: 50 * 1024 * 1024 },
+      limits: { fileSize: 50 * 1024 * 1024 },
     }),
   )
   async addFileToDrive(
