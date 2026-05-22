@@ -1,13 +1,19 @@
-// DTO responsável por definir os campos do body aceitos
-// POST /drive/files/upload
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
 
 export class UploadFileBodyDto {
-    // Nome do arquivo salvo
+    @ApiPropertyOptional({ description: 'Nome do arquivo salvo' })
+    @IsString()
+    @IsOptional()
     fileName?: string;
 
-    // ID da pasta de destino
+    @ApiPropertyOptional({ description: 'ID da pasta de destino' })
+    @IsString()
+    @IsOptional()
     folderId?: string;
 
-    // MIME type do arquivo 
+    @ApiPropertyOptional({ description: 'MIME type do arquivo' })
+    @IsString()
+    @IsOptional()
     mimeType?: string;
 }
