@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
+import { DriveController, CalendarController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { DatabaseService } from './database/database.service';
@@ -10,7 +10,7 @@ import { DatabaseService } from './database/database.service';
     ConfigModule.forRoot({ isGlobal: true }),
     UserModule,
   ],
-  controllers: [AppController],
+  controllers: [DriveController, CalendarController],
   providers: [AppService, DatabaseService],
 })
 export class AppModule { }

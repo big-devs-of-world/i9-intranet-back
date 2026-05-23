@@ -5,12 +5,11 @@ import { Controller,
         UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import multer from 'multer';
-
 import { File as MulterFile } from 'multer';
 
 import { AppService } from './app.service';
 
-// Interfaces
+// Interfaces Driver
 import { ListFilesQueryDto  } from './interfaces/list-files-query.dto';
 import { ListFilesResponse } from './interfaces/list-files-response.interface';
 import { SearchFileByNameQueryDto } from './interfaces/search-file-by-name-query.dto';
@@ -18,8 +17,12 @@ import { SearchFileByNameResponse } from './interfaces/search-file-by-name-respo
 import { UploadFileBodyDto } from './interfaces/upload-file-body.dto';
 import { UploadFileResponse } from './interfaces/upload-file-response.interface';
 
+// Interfaces Calendar
+import { ListCalendarEventsQueryDto } from './interfaces/list-calendar-events-query.dto';
+import { ListCalendarEventsResponse } from './interfaces/list-calendar-events-response.interface';
+
 @Controller('drive')
-export class AppController {
+export class DriveController {
   constructor(private readonly appService: AppService) {}
 
   // 📌 loadFileFromDrive → Listar arquivos do Google Drive
@@ -128,5 +131,33 @@ export class AppController {
       );
     }
   }
+}
 
+@Controller('calendar')
+export class CalendarController {
+  constructor(private readonly appService: AppService) {}
+
+    // 📌 uploadEventsCalendar → Carrega eventos/tarefas do Google Agenda
+    @Get('events')
+    async uploadEventsCalendar(
+      @Query() query: ListCalendarEventsQueryDto,
+    ): Promise<ListCalendarEventsResponse> {
+      try {
+        // Delega toda a lógica de negócio ao AppService
+        return await this.appService.loadEventsCalendar(query);
+
+      } catch (error) {
+        // Repassa HttpExceptions já tratadas no service sem modificar
+        if (error instanceof HttpException) throw error;
+
+        // Tratamento genérico 
+        throw new HttpException(
+          {
+            message: 'Erro interno ao processar a requisição de eventos.',
+            detail: error instanceof Error ? error.message : String(error),
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    }
 }
