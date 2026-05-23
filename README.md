@@ -1,6 +1,6 @@
 # I9+ Intranet API 🚀
 
-Este é o backend da Intranet I9+ Baterias, desenvolvido com **NestJS**. A API fornece funcionalidades essenciais para gestão de usuários, sistema de chat em tempo real (via Firestore) e integração completa com o Google Drive para gerenciamento de arquivos.
+Este é o backend da Intranet I9+ Baterias, desenvolvido com **NestJS**. A API fornece funcionalidades essenciais para gestão de usuários, sistema de chat em tempo real (via Firestore) e integração completa com o Google Drive e Google Calendar para gerenciamento de arquivos e eventos.
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -8,6 +8,7 @@ Este é o backend da Intranet I9+ Baterias, desenvolvido com **NestJS**. A API f
 - **Linguagem:** TypeScript
 - **Banco de Dados:** [Firebase Firestore](https://firebase.google.com/docs/firestore)
 - **Autenticação:** Google OAuth2
+- **Integrações:** Google Drive API & Google Calendar API
 - **Documentação:** [Swagger](https://swagger.io/)
 - **Gerenciador de Pacotes:** pnpm
 
@@ -19,7 +20,7 @@ Este é o backend da Intranet I9+ Baterias, desenvolvido com **NestJS**. A API f
 
 - Node.js (v18 ou superior)
 - pnpm (`npm install -g pnpm`)
-- Uma conta no Google Cloud (para Drive API)
+- Uma conta no Google Cloud (para Drive e Calendar API)
 - Um projeto no Firebase (para Firestore)
 
 ### Instalação
@@ -50,7 +51,7 @@ Este é o backend da Intranet I9+ Baterias, desenvolvido com **NestJS**. A API f
    FIREBASE_MESSAGING_SENDER_ID=seu_sender_id
    FIREBASE_APP_ID=seu_app_id
 
-   # Google OAuth2 (Drive API)
+   # Google OAuth2 (Drive & Calendar API)
    GOOGLE_CLIENT_ID=seu_client_id
    GOOGLE_CLIENT_SECRET=seu_client_secret
    GOOGLE_REDIRECT_URI=seu_redirect_uri
@@ -59,12 +60,13 @@ Este é o backend da Intranet I9+ Baterias, desenvolvido com **NestJS**. A API f
 
 ---
 
-## 📖 Guia de Referência da API
+## 📖 Guia de Referência da API (Swagger)
 
-Para saber como utilizar cada rota da API, incluindo os parâmetros de URL necessários, formato do corpo da requisição (payload) e os esquemas de resposta, por favor consulte a documentação interativa do Swagger.
+A API utiliza o **Swagger** para fornecer uma documentação interativa e completa. Através dela, você pode visualizar todas as rotas disponíveis para **Usuários, Chat, Drive e Calendar**, além de testar as requisições diretamente pelo navegador.
 
-Você pode acessá-la com o servidor rodando em:
-👉 `http://localhost:3000/docs`
+Para acessar a documentação:
+1. Certifique-se de que o servidor está rodando (`pnpm start:dev`).
+2. Acesse: 👉 `http://localhost:3000/docs`
 
 ---
 
@@ -80,24 +82,18 @@ Você pode acessá-la com o servidor rodando em:
 
 ---
 
-## 📝 Documentação Swagger
-
-A documentação interativa completa está disponível em:
-`http://localhost:3000/docs`
-
----
-
 ## 📁 Estrutura do Projeto
 
 ```text
 src/
-├── chat/          # Lógica do sistema de mensagens
-├── database/      # Conexão e serviços do Firebase
-├── user/          # Gestão de usuários e autenticação
-├── utils/         # Enums e auxiliares
-├── interfaces/    # DTOs e Tipagens globais
-├── app.service.ts # Integração com Google Drive
-└── main.ts        # Ponto de entrada da aplicação
+├── chat/           # Lógica do sistema de mensagens
+├── database/       # Conexão e serviços do Firebase
+├── user/           # Gestão de usuários e autenticação
+├── utils/          # Enums e auxiliares
+├── interfaces/     # DTOs e Tipagens globais
+├── app.controller.ts # Controllers de Drive e Calendar
+├── app.service.ts    # Integração com Google Drive e Calendar
+└── main.ts         # Ponto de entrada e config do Swagger
 ```
 
 ---

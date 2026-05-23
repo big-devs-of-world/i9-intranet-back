@@ -161,12 +161,14 @@ export class DriveController {
   }
 }
 
+@ApiTags('Calendar')
 @Controller('calendar')
 export class CalendarController {
   constructor(private readonly appService: AppService) {}
 
     // 📌 uploadEventsCalendar → Carrega eventos/tarefas do Google Agenda
     @Get('events')
+    @ApiOperation({ summary: 'Listar eventos do Google Agenda' })
     async uploadEventsCalendar(
       @Query() query: ListCalendarEventsQueryDto,
     ): Promise<ListCalendarEventsResponse> {
