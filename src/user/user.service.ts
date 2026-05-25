@@ -8,11 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
-import {
-  doc,
-  getDoc,
-  setDoc,
-} from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { initDB } from '../database/connection.database';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginGoogleDto } from './dto/login-google.dto';
@@ -37,7 +33,7 @@ export class UserService {
   private readonly db = initDB();
   private readonly googleClient = new OAuth2Client();
 
-  constructor(private readonly databaseService: DatabaseService) { }
+  constructor(private readonly databaseService: DatabaseService) {}
 
   async checkUserExists(userId: string): Promise<any> {
     try {
@@ -49,7 +45,7 @@ export class UserService {
 
   async create(createUserDto: CreateUserDto) {
     try {
-      const timestamp = Date.now()
+      const timestamp = Date.now();
       const email = this.normalizeEmail(createUserDto.email);
 
       const userData: UserData = {
@@ -60,58 +56,65 @@ export class UserService {
         updatedAt: timestamp,
       };
 
-      const createdUser = await this.databaseService.setNewDoc(this.collectionName, userData)
+      const createdUser = await this.databaseService.setNewDoc(
+        this.collectionName,
+        userData,
+      );
 
       return {
         message: 'Usuario criado com sucesso',
         user: createdUser,
       };
-
     } catch (e: any) {
-      console.error('Falha ao criar o usuário', e)
+      console.error('Falha ao criar o usuário', e);
       return {
         success: false,
-        message: e?.message
-      }
+        message: e?.message,
+      };
     }
   }
 
   async getUser(id: string) {
     try {
-      if (!id || !id.length) throw new HttpException('id é obrigatório', HttpStatus.BAD_REQUEST)
-      const userSnapshot = await this.databaseService.getDoc(this.collectionName, id);
+      if (!id || !id.length)
+        throw new HttpException('id é obrigatório', HttpStatus.BAD_REQUEST);
+      const userSnapshot = await this.databaseService.getDoc(
+        this.collectionName,
+        id,
+      );
 
       return userSnapshot;
     } catch (e: any) {
-      console.error('falha ao buscar usuário', e)
+      console.error('falha ao buscar usuário', e);
       return {
         success: false,
-        message: e.message
-      }
+        message: e.message,
+      };
     }
   }
 
   async getAllUser() {
     try {
-      const foundUserList = await this.databaseService.getCollection(String(this.collectionName))
+      const foundUserList = await this.databaseService.getCollection(
+        String(this.collectionName),
+      );
 
       return {
         user_qtd: foundUserList.length,
-        userList: foundUserList
+        userList: foundUserList,
       };
     } catch (e: any) {
-      console.error('Falha ao buscar lista de usuários', e)
+      console.error('Falha ao buscar lista de usuários', e);
       return {
         success: false,
-        message: e.message
-      }
+        message: e.message,
+      };
     }
   }
 
   async updateUser(id: string, updateUserDto: UpdateUserDto) {
-
     // Precisa ser melhor pensado, não temos tempo para concluir esse desenvolvimento
-    console.log('não finalizado!')
+    console.log('não finalizado!');
 
     // const timestamp = Date.now()
     // const userRef = doc(this.db, this.collectionName, id);
@@ -144,22 +147,26 @@ export class UserService {
 
   async deleteUser(id: string) {
     try {
-      const deleted: boolean = await this.databaseService.delDoc(this.collectionName, id)
+      const deleted: boolean = await this.databaseService.delDoc(
+        this.collectionName,
+        id,
+      );
 
-      return deleted ?
-        {
-          message: 'Usuário apagado com sucesso.',
-          deletedUserId: id
-        } : {
-          success: false,
-          message: `Usuário '${id} não deletado'`
-        }
+      return deleted
+        ? {
+            message: 'Usuário apagado com sucesso.',
+            deletedUserId: id,
+          }
+        : {
+            success: false,
+            message: `Usuário '${id} não deletado'`,
+          };
     } catch (e: any) {
-      console.error('falha ao apagar usuário', e)
+      console.error('falha ao apagar usuário', e);
       return {
         success: false,
-        message: e.message
-      }
+        message: e.message,
+      };
     }
   }
 
@@ -198,7 +205,7 @@ export class UserService {
       const userRef = doc(this.db, this.collectionName, payload.sub);
       const user = await getDoc(userRef);
 
-      const userRole = user.data()?.role ?? 'user'
+      const userRole = user.data()?.role ?? 'user';
 
       const userData = {
         name: payload.name ?? email,
@@ -210,13 +217,11 @@ export class UserService {
         lastLoginAt: timestamp,
       };
 
-      const dataToSet = user.exists() ? userData : { ...userData, createdAt: timestamp }
+      const dataToSet = user.exists()
+        ? userData
+        : { ...userData, createdAt: timestamp };
 
-      await setDoc(
-        userRef,
-        dataToSet,
-        { merge: true },
-      );
+      await setDoc(userRef, dataToSet, { merge: true });
 
       return {
         message: 'Login realizado com sucesso',
@@ -225,15 +230,13 @@ export class UserService {
           ...userData,
         },
       };
-
     } catch (e: any) {
-      console.error('Falha ao fazer login com com o google')
+      console.error('Falha ao fazer login com com o google');
       return {
         success: false,
-        message: e.message
-      }
+        message: e.message,
+      };
     }
-
   }
 
   private normalizeEmail(email: string) {

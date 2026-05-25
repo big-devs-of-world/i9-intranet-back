@@ -7,6 +7,7 @@ Este é o backend da Intranet I9+ Baterias, desenvolvido com **NestJS**. A API f
 - **Framework:** [NestJS](https://nestjs.com/)
 - **Linguagem:** TypeScript
 - **Banco de Dados:** [Firebase Firestore](https://firebase.google.com/docs/firestore)
+- **Tempo Real:** [Socket.io](https://socket.io/) (WebSockets)
 - **Autenticação:** Google OAuth2
 - **Integrações:** Google Drive API & Google Calendar API
 - **Documentação:** [Swagger](https://swagger.io/)
@@ -67,6 +68,23 @@ A API utiliza o **Swagger** para fornecer uma documentação interativa e comple
 Para acessar a documentação:
 1. Certifique-se de que o servidor está rodando (`pnpm start:dev`).
 2. Acesse: 👉 `http://localhost:3000/docs`
+
+---
+
+## 🔌 WebSockets (Tempo Real)
+
+O sistema de chat utiliza **Socket.io** para comunicação em tempo real, otimizando o consumo de leituras do Firestore.
+
+### Eventos (Emitir)
+- `joinChat`: Registra o cliente em uma sala de chat específica.
+  - Payload: `{ "chatId": "string" }`
+- `leaveChat`: Remove o cliente de uma sala de chat.
+  - Payload: `{ "chatId": "string" }`
+- `sendMessage`: Envia uma mensagem via socket (também persiste no Firestore).
+  - Payload: `{ "chatId": "string", "sendMessageDto": { "senderId": "string", "content": "string" } }`
+
+### Eventos (Escutar)
+- `newMessage`: Recebido quando uma nova mensagem é enviada para o chat que o usuário está "escutando".
 
 ---
 

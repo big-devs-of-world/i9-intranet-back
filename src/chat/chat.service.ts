@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -9,8 +16,10 @@ export class ChatService {
   private readonly chatsCollection = 'chats';
   private readonly messagesCollection = 'messages';
 
-  constructor(private readonly databaseService: DatabaseService, private readonly userService: UserService) { }
-
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly userService: UserService,
+  ) { }
 
   /**
    * Função privado para verificar a existência de um chat.
@@ -27,7 +36,7 @@ export class ChatService {
    * Cria um novo chat no banco de dados.
    * Verifica a existência de todos os participantes antes de criar.
    * ┐( ˘_˘ )┌
-   * 
+   *
    * @param createChatDto Dados para criação do chat.
    * @returns O documento do chat criado.
    */
@@ -35,7 +44,9 @@ export class ChatService {
     try {
       // Verifica se todos os participantes existem no banco de dados
       await Promise.all(
-        createChatDto.participants.map((userId: string) => this.userService.checkUserExists(userId))
+        createChatDto.participants.map((userId: string) =>
+          this.userService.checkUserExists(userId),
+        ),
       );
 
       const data = {
@@ -47,7 +58,10 @@ export class ChatService {
         lastMessageAt: null,
       };
 
-      const chat = await this.databaseService.setNewDoc(this.chatsCollection, data);
+      const chat = await this.databaseService.setNewDoc(
+        this.chatsCollection,
+        data,
+      );
       return chat;
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -61,13 +75,18 @@ export class ChatService {
    * Retorna todos os chats em que um usuário específico é participante.
    * FUTURO: Futuramente, obter o userId a partir do token de autenticação (auth) em vez do parâmetro.
    * (づ ￣ ³￣ )づ
-   * 
+   *
    * @param userId ID do usuário.
    * @returns Lista de chats do usuário.
    */
   async getChatsByUserId(userId: string) {
     try {
-      const chats = await this.databaseService.getDocsByQuery(this.chatsCollection, 'participants', 'array-contains', userId);
+      const chats = await this.databaseService.getDocsByQuery(
+        this.chatsCollection,
+        'participants',
+        'array-contains',
+        userId,
+      );
       return chats;
     } catch (error) {
       throw new InternalServerErrorException('Failed to get chats');
@@ -79,7 +98,7 @@ export class ChatService {
    * Valida a existência do chat e se o remetente é participante do mesmo.
    * FUTURO: Futuramente, obter o senderId a partir do token de autenticação (auth).
    * ༼ つ ◕_◕ ༽つ
-   * 
+   *
    * @param chatId ID do chat.
    * @param sendMessageDto Dados da mensagem.
    * @returns Dados da mensagem enviada e seu ID.
@@ -90,7 +109,9 @@ export class ChatService {
 
       const participants = chatDoc.data?.participants || [];
       if (!participants.includes(sendMessageDto.senderId)) {
-        throw new ForbiddenException(`User with ID ${sendMessageDto.senderId} is not a participant in chat ${chatId}`);
+        throw new ForbiddenException(
+          `User with ID ${sendMessageDto.senderId} is not a participant in chat ${chatId}`,
+        );
       }
 
       const timestamp = new Date().toISOString();
@@ -101,7 +122,10 @@ export class ChatService {
         createdAt: timestamp,
       };
 
-      const messageId = await this.databaseService.setNewDoc(this.messagesCollection, messageData);
+      const messageId = await this.databaseService.setNewDoc(
+        this.messagesCollection,
+        messageData,
+      );
 
       // Atualiza o lastMessage do chat
       await this.databaseService.updateDoc(this.chatsCollection, chatId, {
@@ -111,7 +135,10 @@ export class ChatService {
 
       return { id: messageId, ...messageData };
     } catch (error) {
-      if (error instanceof ForbiddenException || error instanceof NotFoundException) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
       throw new InternalServerErrorException('Failed to send message');
@@ -122,7 +149,7 @@ export class ChatService {
    * Recupera as mensagens de um chat, incluindo dados básicos de cada remetente.
    * FUTURO: Implementar verificação de autorização para garantir que quem solicita é participante.
    * ┐( ˘_˘ )┌
-   * 
+   *
    * @param chatId ID do chat.
    * @returns Lista de mensagens enriquecidas com dados do remetente.
    */
@@ -135,14 +162,17 @@ export class ChatService {
         'chatId',
         '==',
         chatId,
-        'createdAt'
+        'createdAt',
       );
 
       // Adiciona o remetente (sender) nas mensagens
       const enrichedMessages = await Promise.all(
         messages.map(async (message: { id: string; data: any }) => {
           try {
-            const userDoc: any = await this.databaseService.getDoc('users', message.data.senderId);
+            const userDoc: any = await this.databaseService.getDoc(
+              'users',
+              message.data.senderId,
+            );
             return {
               ...message,
               sender: {
@@ -153,7 +183,7 @@ export class ChatService {
           } catch {
             return { ...message, sender: null };
           }
-        })
+        }),
       );
 
       return enrichedMessages;
@@ -170,7 +200,7 @@ export class ChatService {
    * Valida a existência do usuário, do chat, e se não é uma conversa direta (DM).
    * FUTURO: Implementar verificação de autorização de quem enviou a requisição.
    * (ง ื▿ ื)ว
-   * 
+   *
    * @param chatId ID do chat.
    * @param userId ID do usuário a ser adicionado.
    * @returns Objeto contendo a mensagem de sucesso e a lista atualizada de participantes.
@@ -181,12 +211,16 @@ export class ChatService {
       const chatDoc = await this.checkChatExists(chatId);
 
       if (chatDoc.data?.isDM) {
-        throw new ForbiddenException(`Não é possível adicionar participantes em uma conversa direta (DM)`);
+        throw new ForbiddenException(
+          `Não é possível adicionar participantes em uma conversa direta (DM)`,
+        );
       }
 
       const participants: string[] = chatDoc.data?.participants || [];
       if (participants.includes(userId)) {
-        throw new ConflictException(`Usuário com ID '${userId}' já é participante do chat '${chatId}'`);
+        throw new ConflictException(
+          `Usuário com ID '${userId}' já é participante do chat '${chatId}'`,
+        );
       }
 
       const updatedParticipants = [...participants, userId];
@@ -207,7 +241,9 @@ export class ChatService {
       ) {
         throw error;
       }
-      throw new InternalServerErrorException('Failed to add participant to chat');
+      throw new InternalServerErrorException(
+        'Failed to add participant to chat',
+      );
     }
   }
 
@@ -227,12 +263,16 @@ export class ChatService {
       const chatDoc = await this.checkChatExists(chatId);
 
       if (chatDoc.data?.isDM) {
-        throw new ForbiddenException(`Não é possível remover participantes de uma conversa direta (DM)`);
+        throw new ForbiddenException(
+          `Não é possível remover participantes de uma conversa direta (DM)`,
+        );
       }
 
       const participants: string[] = chatDoc.data?.participants || [];
       if (!participants.includes(userId)) {
-        throw new BadRequestException(`Usuário com ID '${userId}' não é participante do chat '${chatId}'`);
+        throw new BadRequestException(
+          `Usuário com ID '${userId}' não é participante do chat '${chatId}'`,
+        );
       }
 
       const updatedParticipants = participants.filter((id) => id !== userId);
@@ -253,7 +293,9 @@ export class ChatService {
       ) {
         throw error;
       }
-      throw new InternalServerErrorException('Failed to remove participant from chat');
+      throw new InternalServerErrorException(
+        'Failed to remove participant from chat',
+      );
     }
   }
 
@@ -261,8 +303,8 @@ export class ChatService {
    * Exclui um chat em grupo existente.
    * Valida se o usuário solicitante existe e é participante do chat. Não permite exclusão de DM.
    * FUTURO: Obter o userId via autenticação em vez do body (atualmente inseguro).
-   * (╯°□°）╯︵ ┻━┻ 
-   * 
+   * (╯°□°）╯︵ ┻━┻
+   *
    * @param chatId ID do chat.
    * @param userId ID do usuário que está solicitando a exclusão.
    * @returns Objeto com a mensagem de sucesso.
@@ -273,19 +315,26 @@ export class ChatService {
       const chatDoc = await this.checkChatExists(chatId);
 
       if (chatDoc.data?.isDM) {
-        throw new ForbiddenException(`Não é possível excluir uma conversa direta (DM)`);
+        throw new ForbiddenException(
+          `Não é possível excluir uma conversa direta (DM)`,
+        );
       }
 
       const participants: string[] = chatDoc.data?.participants || [];
       if (!participants.includes(userId)) {
-        throw new ForbiddenException(`Usuário com ID '${userId}' não é membro do chat '${chatId}'`);
+        throw new ForbiddenException(
+          `Usuário com ID '${userId}' não é membro do chat '${chatId}'`,
+        );
       }
 
       await this.databaseService.delDoc(this.chatsCollection, chatId);
 
       return { message: `Chat '${chatId}' deletado com sucesso` };
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
         throw error;
       }
       throw new InternalServerErrorException('Failed to delete chat');
