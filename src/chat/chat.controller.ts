@@ -1,16 +1,20 @@
-import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiParam, ApiBody } from "@nestjs/swagger";
-import { ChatService } from "./chat.service";
-import { CreateChatDto } from "./dto/create-chat.dto";
-import { SendMessageDto } from "./dto/send-message.dto";
-import { AddParticipantDto } from "./dto/add-participant.dto";
-import { DeleteChatDto } from "./dto/delete-chat.dto";
-import { RemoveParticipantDto } from "./dto/remove-participant.dto";
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
+import { ChatService } from './chat.service';
+import { CreateChatDto } from './dto/create-chat.dto';
+import { SendMessageDto } from './dto/send-message.dto';
+import { AddParticipantDto } from './dto/add-participant.dto';
+import { DeleteChatDto } from './dto/delete-chat.dto';
+import { RemoveParticipantDto } from './dto/remove-participant.dto';
+import { ChatGateway } from './chat.gateway';
 
 @ApiTags('Chat')
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) { }
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Criar chat' })
@@ -27,14 +31,22 @@ export class ChatController {
   }
 
   @Post(':chatId/message')
-  @ApiOperation({ summary: 'Enviar mensagem no chat' })
+  @ApiOperation({ 
+    summary: 'Enviar mensagem no chat', 
+    description: 'Envia uma mensagem para o Firestore e notifica os participantes conectados via WebSocket (evento: newMessage).' 
+  })
   @ApiParam({ name: 'chatId', type: String })
   @ApiBody({ type: SendMessageDto })
   async sendMessage(
     @Param('chatId') chatId: string,
     @Body() sendMessageDto: SendMessageDto,
   ) {
-    return this.chatService.sendMessage(chatId, sendMessageDto);
+    const result = await this.chatService.sendMessage(chatId, sendMessageDto);
+
+    // Notificar via WebSocket
+    this.chatGateway.server.to(`chat_${chatId}`).emit('newMessage', result);
+
+    return result;
   }
 
   @Get(':chatId/messages')
@@ -63,7 +75,10 @@ export class ChatController {
     @Param('chatId') chatId: string,
     @Body() removeParticipantDto: RemoveParticipantDto,
   ) {
-    return this.chatService.removeParticipant(chatId, removeParticipantDto.userId);
+    return this.chatService.removeParticipant(
+      chatId,
+      removeParticipantDto.userId,
+    );
   }
 
   @Delete(':chatId')

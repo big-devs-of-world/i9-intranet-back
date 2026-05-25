@@ -2,33 +2,33 @@
 // GET /calendar/events
 
 export class ListCalendarEventsQueryDto {
-    // Id do calendário a ser consultado
-    calendarId?: string;
+  // Id do calendário a ser consultado
+  calendarId?: string;
 
-    // Número máximo de eventos retornados por página
-    pageSize?: number;
+  // Número máximo de eventos retornados por página
+  pageSize?: number;
 
-    // Token da próxima página retornado pela requisição anterior
-    pageToken?: string;
+  // Token da próxima página retornado pela requisição anterior
+  pageToken?: string;
 
-    // Filtro livre (título, descrição e localização do evento)
-    q?: string;
+  // Filtro livre (título, descrição e localização do evento)
+  q?: string;
 
-    // Data/Hora de início mínima para filtrar eventos (ISO 8601)
-    timeMin?: string;
+  // Data/Hora de início mínima para filtrar eventos (ISO 8601)
+  timeMin?: string;
 
-    // Data/Hora de início máxima para filtrar eventos (ISO 8601)
-    timeMax?: string;
+  // Data/Hora de início máxima para filtrar eventos (ISO 8601)
+  timeMax?: string;
 
-    // Critério de ordenação dos resultados
-    orderBy?:string;
+  // Critério de ordenação dos resultados
+  orderBy?: string;
 
-    // Se true, expande eventos recorrentes em instâncias individuais
-    singleEvents?: boolean;
+  // Se true, expande eventos recorrentes em instâncias individuais
+  singleEvents?: boolean;
 
-    // Se true, inclui eventos cancelados/deletados na resposta
-    showDeleted?: boolean;
+  // Se true, inclui eventos cancelados/deletados na resposta
+  showDeleted?: boolean;
 
-    // Fuso horário IANA para exibição das data/horas na resposta
-    timeZone?: string;
+  // Fuso horário IANA para exibição das data/horas na resposta
+  timeZone?: string;
 }
