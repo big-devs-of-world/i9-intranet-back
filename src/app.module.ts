@@ -7,12 +7,8 @@ import { ChatModule } from './chat/chat.module';
 import { DatabaseService } from './database/database.service';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    UserModule,
-    ChatModule
-  ],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), UserModule, ChatModule],
   controllers: [DriveController, CalendarController],
   providers: [AppService, DatabaseService],
 })
-export class AppModule { }
+export class AppModule {}

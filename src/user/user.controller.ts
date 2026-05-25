@@ -24,7 +24,7 @@ import { UserService } from './user.service';
 @ApiTags('User')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   @Post('create')
   @ApiOperation({ summary: 'Criar usuário' })
@@ -51,10 +51,7 @@ export class UserController {
   @ApiOperation({ summary: 'Atualizar usuário' })
   @ApiParam({ name: 'id', type: String })
   @ApiBody({ type: UpdateUserDto })
-  updateUser(
-    @Param('id') id: string,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
+  updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.updateUser(id, updateUserDto);
   }
 
