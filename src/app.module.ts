@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
+import { DriveController, CalendarController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { ChatModule } from './chat/chat.module';
@@ -12,7 +12,7 @@ import { DatabaseService } from './database/database.service';
     UserModule,
     ChatModule
   ],
-  controllers: [AppController],
+  controllers: [DriveController, CalendarController],
   providers: [AppService, DatabaseService],
 })
 export class AppModule { }

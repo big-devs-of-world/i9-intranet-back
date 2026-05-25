@@ -4,18 +4,27 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 
-import { google, drive_v3 } from 'googleapis';
+import { google, drive_v3, calendar_v3 } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { File as MulterFile } from 'multer';
 import { Readable } from 'stream';
 
-// Interfaces
+// Interfaces Drive
 import { ListFilesQueryDto } from './interfaces/list-files-query.dto'; // GET listar arq
 import { ListFilesResponse } from './interfaces/list-files-response.interface'; // GET listar arq
 import { SearchFileByNameQueryDto } from './interfaces/search-file-by-name-query.dto'; // GET buscar arq
 import { SearchFileByNameResponse } from './interfaces/search-file-by-name-response-interface'; // GET buscar arq
 import { UploadFileBodyDto } from './interfaces/upload-file-body.dto'; // POST salvar arq
 import { UploadFileResponse } from './interfaces/upload-file-response.interface'; // POST salvar arq
+
+// Interfaces Calendar
+import { ListCalendarEventsQueryDto } from './interfaces/list-calendar-events-query.dto';
+import { ListCalendarEventsResponse } from './interfaces/list-calendar-events-response.interface';
+
+const OAUTH_SCOPES = [
+  'https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/calendar.readonly',
+];
 
 // Campos padrão para files.list
 const DEFAULT_FIELDS =
@@ -25,17 +34,25 @@ const DEFAULT_FIELDS =
 const DEFAULT_CREATE_FIELDS =
   'id, name, mimeType, size, webViewLink, createdTime';
 
+// Campos padrão para events.list
+const DEFAULT_EVENT_FIELDS = 
+  'nextPageToken, items(id, summary, description, location, status, htmlLink, created,updated, start, end, organizer, attendees, recurrence, reminders, conferenceData)';
+
 @Injectable()
 export class AppService {
-  private readonly drive: drive_v3.Drive = (() => {
-    // Lê variáveis de ambiente
-    const clienteId = process.env.GOOGLE_CLIENT_ID;
+  private readonly oauth2Client: OAuth2Client;
+  private readonly drive: drive_v3.Drive;
+  private readonly calendar: calendar_v3.Calendar; 
+  
+  constructor() {
+    // Lê as credenciais das variáveis de ambiente
+    const clientId     = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    const redirectUri  = process.env.GOOGLE_REDIRECT_URI;
     const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
-
-    // Validação obrigatória das credenciais
-    if (!clienteId || !clientSecret || !redirectUri || !refreshToken) {
+ 
+    // Validação da variáveis de ambiente
+    if (!clientId || !clientSecret || !redirectUri || !refreshToken) {
       throw new HttpException(
         {
           message:
@@ -46,29 +63,24 @@ export class AppService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-
+ 
     // Instancia o cliente OAuth2 com as credenciais do aplicativo
-    const oauth2Client: OAuth2Client = new google.auth.OAuth2(
-      clienteId,
+    this.oauth2Client = new google.auth.OAuth2(
+      clientId,
       clientSecret,
-      redirectUri
+      redirectUri,
     );
-
-    // Define o refresh token nas credenciais do cliente
-    oauth2Client.setCredentials({
+ 
+    this.oauth2Client.setCredentials({
       refresh_token: refreshToken,
+      scope: OAUTH_SCOPES.join(' '),
     });
+ 
+    // Inicializa os clientes das APIs usando o oauth2Client já configurado
+    this.drive    = google.drive({ version: 'v3', auth: this.oauth2Client });
+    this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
+  }
     
-
-    // Retorna instância autenticadado Google Drive API v3
-    return google.drive({
-      version: 'v3',
-      auth: oauth2Client,
-    });
-
-  })();
-
-  
   // 📌 loadFileFromDrive → Responsável por listar arquivos do Google Drive
   async loadFileFromDrive(
     query: ListFilesQueryDto,
@@ -259,9 +271,6 @@ export class AppService {
         ...(body.folderId ? { parents: [body.folderId]} : {})
       };
 
-      // A Drive API exige stream 
-      const fileStream = Readable.from(file.buffer);
-
       // MIME Type
       const mimeType =
         body.mimeType?.trim() ||
@@ -273,7 +282,7 @@ export class AppService {
         requestBody,
         media: {
           mimeType,
-          body: fileStream,
+          body: Readable.from(file.buffer)
         },
         fields: DEFAULT_CREATE_FIELDS, 
       });
@@ -316,6 +325,118 @@ export class AppService {
       throw new HttpException(
         {
           message: 'Erro ao fazer upload do arquivo para o Google Drive',
+          detail:
+            err.response?.data?.error?.message ??
+            err.message ??
+            String(error),
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // 📌 loadEventsCalendar → Carrega eventos/tarefas do Google Agenda
+  async loadEventsCalendar(
+    query:ListCalendarEventsQueryDto,
+  ): Promise<ListCalendarEventsResponse>{
+    try {
+      // Define o calendarId a ser consultado
+      const calendarId = query.calendarId?.trim() || 'primary';
+
+      // Chama o método events.list da API Google Calendar v3
+      const response = await this.calendar.events.list({
+        calendarId, // Id do calendário a ser consultado
+        maxResults: query.pageSize ? Number(query.pageSize) : 50, // Número máximo de eventos por pag
+        pageToken: query.pageToken, // Token para continuar a listagem da pag anterior
+        q: query.q, // Busca livre
+        timeMin: query.timeMin ?? new Date().toISOString(), // retorna apenas eventos com início >= timeMin
+        timeMax: query.timeMax, // Retorna apenas eventos com início <= timeMax
+        orderBy: (query.orderBy as 'startTime' | 'updated') ?? 'startTime', // Ordenção
+        singleEvents: query.singleEvents ?? true, // Recorrência
+        showDeleted: query.showDeleted ?? false, // Eventos deletados
+        timeZone: query.timeZone ?? 'America/Sao_Paulo', // Fuso Horário
+        fields: DEFAULT_EVENT_FIELDS, // Campos retornados
+      });
+
+      // Extrai a lista de eventos da resposta da API
+      const events = response.data.items ?? [];
+
+      // Retorno padronizado 
+      return {
+        statusCode: HttpStatus.OK,
+
+        message: events.length > 0
+          ? `${events.length} evento(s) encontrado(s) no calendário "${calendarId}".`
+          : `Nenhum evento encontrado no calendário "${calendarId}".`,
+
+        calendarId,
+        count: events.length,
+        nextPageToken: response.data.nextPageToken ?? null,
+        data: events,
+      };
+
+    } catch (error) {
+      // Repassa HttpExceptions já tratadas sem modificar
+      if (error instanceof HttpException) throw error;
+
+      // Tipagem do erro da API Google Calendar
+      const err = error as {
+        message?: string;
+        response?: {
+          data?: {
+            error?: {
+              message?: string;
+              code?: number;
+            };
+          };
+        };
+      };
+
+      // Código HTTP retornado pela API do Google 
+      const googleErrorCode = err.response?.data?.error?.code;
+
+      // Erro 401: token sem escopo de Calendar
+      if (googleErrorCode === 401) {
+        throw new HttpException(
+          {
+            message:
+              'Acesso negado ao Google Calendar. ' +
+              'Regenere o GOOGLE_REFRESH_TOKEN no OAuth Playground ' +
+              'selecione o escopo: ' +
+              'https://www.googleapis.com/auth/calendar.readonly',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      // Erro 404: calendário não encontrado
+      if (googleErrorCode === 404) {
+        throw new HttpException(
+          {
+            message: 
+              `Calendário "${query.calendarId ?? 'primary'}" não encontrado. ` +
+              'Use "primary" para o calendário principal ou verifique o ID informado.',
+          },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      // Erro 403: sem permissão de acesso
+      if (googleErrorCode === 403){
+        throw new HttpException(
+          {
+            message: 
+              'Sem permissão para acessar este calendário. ' +
+              'Verifique se o escopo correto foi autorizado no Refresh Token.',
+          },
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      // Outro erros
+      throw new HttpException(
+        {
+          message: 'Erro ao listar eventos do Google Calendar.',
           detail:
             err.response?.data?.error?.message ??
             err.message ??
