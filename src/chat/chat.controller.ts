@@ -64,7 +64,17 @@ export class ChatController {
     @Param('chatId') chatId: string,
     @Body() addParticipantDto: AddParticipantDto,
   ) {
-    return this.chatService.addParticipant(chatId, addParticipantDto.userId);
+    const result = await this.chatService.addParticipant(
+      chatId,
+      addParticipantDto.userId,
+    );
+
+    // Notificar via WebSocket
+    this.chatGateway.server
+      .to(`chat_${chatId}`)
+      .emit('participantJoined', { userId: addParticipantDto.userId });
+
+    return result;
   }
 
   @Delete(':chatId/participants')
@@ -75,10 +85,17 @@ export class ChatController {
     @Param('chatId') chatId: string,
     @Body() removeParticipantDto: RemoveParticipantDto,
   ) {
-    return this.chatService.removeParticipant(
+    const result = await this.chatService.removeParticipant(
       chatId,
       removeParticipantDto.userId,
     );
+
+    // Notificar via WebSocket
+    this.chatGateway.server
+      .to(`chat_${chatId}`)
+      .emit('participantLeft', { userId: removeParticipantDto.userId });
+
+    return result;
   }
 
   @Delete(':chatId')
@@ -89,6 +106,13 @@ export class ChatController {
     @Param('chatId') chatId: string,
     @Body() deleteChatDto: DeleteChatDto,
   ) {
-    return this.chatService.deleteChat(chatId, deleteChatDto.userId);
+    const result = await this.chatService.deleteChat(chatId, deleteChatDto.userId);
+
+    // Notificar via WebSocket
+    this.chatGateway.server
+      .to(`chat_${chatId}`)
+      .emit('chatDeleted', { chatId });
+
+    return result;
   }
 }
