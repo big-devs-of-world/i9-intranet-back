@@ -113,36 +113,40 @@ export class UserService {
   }
 
   async updateUser(id: string, updateUserDto: UpdateUserDto) {
-    // Precisa ser melhor pensado, não temos tempo para concluir esse desenvolvimento
-    console.log('não finalizado!');
+    try {
+      await this.checkUserExists(id);
 
-    // const timestamp = Date.now()
-    // const userRef = doc(this.db, this.collectionName, id);
-    // const userSnapshot = await getDoc(userRef);
+      const timestamp = Date.now();
+      const email = updateUserDto.email
+        ? this.normalizeEmail(updateUserDto.email)
+        : undefined;
 
-    // if (!userSnapshot.exists()) {
-    //   throw new NotFoundException('Usuario nao encontrado');
-    // }
+      const updateData = this.removeEmptyValues({
+        ...updateUserDto,
+        email,
+        updatedAt: timestamp,
+      });
 
-    // const email = updateUserDto.email
-    //   ? this.normalizeEmail(updateUserDto.email)
-    //   : undefined;
-    // const updateData = this.removeEmptyValues({
-    //   ...updateUserDto,
-    //   email,
-    //   updatedAt: timestamp,
-    // });
+      await this.databaseService.updateDoc(
+        this.collectionName,
+        id,
+        updateData,
+      );
 
-    // if (email) {
-    //   await this.ensureEmailIsAllowed(email);
-    // }
-
-    // await updateDoc(userRef, updateData);
-
-    // return {
-    //   message: 'Usuario atualizado com sucesso',
-    //   user: await this.getUser(id),
-    // };
+      return {
+        message: 'Usuario atualizado com sucesso',
+        user: await this.getUser(id),
+      };
+    } catch (e: any) {
+      if (e instanceof NotFoundException) {
+        throw e;
+      }
+      console.error('Falha ao atualizar o usuário', e);
+      return {
+        success: false,
+        message: e.message,
+      };
+    }
   }
 
   async deleteUser(id: string) {
@@ -247,12 +251,11 @@ export class UserService {
     return email.trim().toLowerCase();
   }
 
-  ////// Não utilizado
-  // private removeEmptyValues<T extends Record<string, unknown>>(data: T) {
-  //   return Object.fromEntries(
-  //     Object.entries(data).filter(
-  //       ([, value]) => value !== undefined && value !== null && value !== '',
-  //     ),
-  //   );
-  // }
+  private removeEmptyValues<T extends Record<string, any>>(data: T) {
+    return Object.fromEntries(
+      Object.entries(data).filter(
+        ([, value]) => value !== undefined && value !== null && value !== '',
+      ),
+    );
+  }
 }
