@@ -285,9 +285,26 @@ export class AppService {
         );
       }
 
+      // Torna o arquivo público para qualquer pessoa acessar
+      try {
+        await this.drive.permissions.create({
+          fileId: created.id,
+          requestBody: {
+            role: 'reader',
+            type: 'anyone',
+          },
+        });
+      } catch (permissionError) {
+        console.error(
+          'Aviso: Arquivo criado mas não foi possível torná-lo público.',
+          permissionError,
+        );
+        // Não lançar exceção - o arquivo foi criado com sucesso
+      }
+
       return {
         statusCode: HttpStatus.CREATED,
-        message: `Arquivo "${created.name}" enviado com sucesso para o Google Drive`,
+        message: `Arquivo "${created.name}" enviado com sucesso para o Google Drive (público)`,
         data: {
           id: created.id,
           name: created.name,
